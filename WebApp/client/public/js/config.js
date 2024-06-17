@@ -6,9 +6,9 @@ export async function getServerConfig() {
   return await createResponse.json();
 }
 
-export function getRTCConfiguration() {
+export function getRTCConfiguration(streamId) {
   let config = {};
   config.sdpSemantics = 'unified-plan';
-  config.iceServers = getServers();
+  config.iceServers = getServers(streamId);
   return config;
 }

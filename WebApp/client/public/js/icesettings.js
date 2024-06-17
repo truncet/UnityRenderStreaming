@@ -91,11 +91,14 @@ export function readServersFromLocalStorage() {
   }
 }
 
-export function getServers() {
+export function getServers(streamId) {
   const storedServers = window.localStorage.getItem(allServersKey);
 
-  if (storedServers === null || storedServers === '') {
+  if (streamId == 1 && (storedServers === null || storedServers === '') ) {
     return [{ urls: ['stun:stun.l.google.com:19302'] }];
+  }
+  else if (streamId == 2 && (storedServers === null || storedServers === '') ) {
+    return [{ urls: ['stun:stun1.l.google.com:19302'] }];
   }
   else {
     return JSON.parse(storedServers);

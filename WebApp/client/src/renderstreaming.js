@@ -35,6 +35,7 @@ export class RenderStreaming {
   async _onConnect(e) {
     const data = e.detail;
     if (this._connectionId == data.connectionId) {
+      console.log(this._connectionId);
       this._preparePeerConnection(this._connectionId, data.polite);
       this.onConnect(data.connectionId);
     }
@@ -121,12 +122,15 @@ export class RenderStreaming {
     });
     this._peer.addEventListener('ongotoffer', (e) => {
       const id = e.detail.connectionId;
+      console.log("got an offer. connection id is ");
+      console.log(id);
       this.onGotOffer(id);
     });
     this._peer.addEventListener('ongotanswer', (e) => {
       const id = e.detail.connectionId;
       this.onGotAnswer(id);
-    });
+    });    this.onGotOffer = function (connectionId) { Logger.log(`On got Offer on ${connectionId}.`); };
+
     this._peer.addEventListener('sendoffer', (e) => {
       const offer = e.detail;
       this._signaling.sendOffer(offer.connectionId, offer.sdp);

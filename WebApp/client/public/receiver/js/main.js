@@ -6,8 +6,10 @@ import { Signaling, WebSocketSignaling } from "../../module/signaling.js";
 
 /** @type {Element} */
 let playButton;
+let secondPlayButton;
 /** @type {RenderStreaming} */
 let renderstreaming;
+let secondRenderStreaming;
 /** @type {boolean} */
 let useWebSocket;
 
@@ -18,8 +20,10 @@ const messageDiv = document.getElementById('message');
 messageDiv.style.display = 'none';
 
 const playerDiv = document.getElementById('player');
+const secondPlayerDiv = document.getElementById('secondPlayer');
 const lockMouseCheck = document.getElementById('lockMouseCheck');
-const videoPlayer = new VideoPlayer();
+const firstVideoPlayer = new VideoPlayer();
+const secondVideoPlayer = new VideoPlayer();
 
 setup();
 
@@ -28,7 +32,8 @@ window.document.oncontextmenu = function () {
 };
 
 window.addEventListener('resize', function () {
-  videoPlayer.resizeVideo();
+  firstVideoPlayer.resizeVideo();
+  
 }, true);
 
 window.addEventListener('beforeunload', async () => {
@@ -42,7 +47,8 @@ async function setup() {
   useWebSocket = res.useWebSocket;
   showWarningIfNeeded(res.startupMode);
   showCodecSelect();
-  showPlayButton();
+  showPlayButton(1);
+  showPlayButton(2);
 }
 
 function showWarningIfNeeded(startupMode) {
@@ -53,8 +59,8 @@ function showWarningIfNeeded(startupMode) {
   }
 }
 
-function showPlayButton() {
-  if (!document.getElementById('playButton')) {
+function showPlayButton(streamId) {
+  if (!document.getElementById('playButton') && streamId == 1) {
     const elementPlayButton = document.createElement('img');
     elementPlayButton.id = 'playButton';
     elementPlayButton.src = '../../images/Play.png';
@@ -62,49 +68,120 @@ function showPlayButton() {
     playButton = document.getElementById('player').appendChild(elementPlayButton);
     playButton.addEventListener('click', onClickPlayButton);
   }
+
+  if (!document.getElementById('secondPlayButton') && streamId == 2) {
+    const secondElementPlayButton = document.createElement('img');
+    secondElementPlayButton.id = 'secondPlayButton';
+    secondElementPlayButton.src = '../../images/Play.png';
+    secondElementPlayButton.alt = 'Start Streaming';
+    // second player div
+    secondPlayButton = document.getElementById('secondPlayer').appendChild(secondElementPlayButton);
+    secondPlayButton.addEventListener('click', onSecondClickPlayButton);
+
+  }
 }
 
 function onClickPlayButton() {
   playButton.style.display = 'none';
 
   // add video player
-  videoPlayer.createPlayer(playerDiv, lockMouseCheck);
-  setupRenderStreaming();
+  firstVideoPlayer.createPlayer(playerDiv, lockMouseCheck);
+  // videoPlayer.createPlayer(secondPlayerDiv, lockMouseCheck);
+  setupRenderStreaming(1);
 }
 
-async function setupRenderStreaming() {
-  codecPreferences.disabled = true;
+function onSecondClickPlayButton() {
+  secondPlayButton.style.display = 'none';
 
-  const signaling = useWebSocket ? new WebSocketSignaling() : new Signaling();
-  const config = getRTCConfiguration();
+  // add video player
+  // videoPlayer.createPlayer(playerDiv, lockMouseCheck);
+  secondVideoPlayer.createPlayer(secondPlayerDiv, lockMouseCheck);
+  setupSecomndRenderStreaming(2);
+}
+
+async function setupSecomndRenderStreaming(streamId) {
+  codecPreferences.disabled = true;
+  console.log(streamId);
+  const signaling = useWebSocket ? new WebSocketSignaling(streamId) : new Signaling();
+  const config = getRTCConfiguration(streamId);
+  secondRenderStreaming = new RenderStreaming(signaling, config);
+  secondRenderStreaming.onConnect = createOnConnectHandler(streamId, secondRenderStreaming);
+  secondRenderStreaming.onDisconnect = createOnDisconnectHandler(streamId, secondRenderStreaming);
+  secondRenderStreaming.onTrackEvent = (data) => {
+    if (streamId === 1) {
+      firstVideoPlayer.addTrack(data.track);
+    } else if (streamId === 2) {
+      secondVideoPlayer.addTrack(data.track);
+    }
+  };
+
+  secondRenderStreaming.onGotOffer = setCodecPreferences;
+
+  await secondRenderStreaming.start();
+  await secondRenderStreaming.createConnection();
+}
+
+async function setupRenderStreaming(streamId) {
+  codecPreferences.disabled = true;
+  console.log(streamId);
+  const signaling = useWebSocket ? new WebSocketSignaling(streamId) : new Signaling();
+  const config = getRTCConfiguration(streamId);
   renderstreaming = new RenderStreaming(signaling, config);
-  renderstreaming.onConnect = onConnect;
-  renderstreaming.onDisconnect = onDisconnect;
-  renderstreaming.onTrackEvent = (data) => videoPlayer.addTrack(data.track);
+  renderstreaming.onConnect = createOnConnectHandler(streamId, renderstreaming);
+  renderstreaming.onDisconnect = createOnDisconnectHandler(streamId, renderstreaming);
+  renderstreaming.onTrackEvent = (data) => {
+    if (streamId === 1) {
+      firstVideoPlayer.addTrack(data.track);
+    } else if (streamId === 2) {
+      secondVideoPlayer.addTrack(data.track);
+    }
+  };
+
   renderstreaming.onGotOffer = setCodecPreferences;
 
   await renderstreaming.start();
   await renderstreaming.createConnection();
 }
 
-function onConnect() {
-  const channel = renderstreaming.createDataChannel("input");
-  videoPlayer.setupInput(channel);
-  showStatsMessage();
+function createOnConnectHandler(streamId, renderstreaming) {
+  return function() {
+    const channel = renderstreaming.createDataChannel("input" + streamId);
+    console.log("this is video player");
+    if (streamId === 1) {
+      firstVideoPlayer.setupInput(channel);
+      console.log(firstVideoPlayer);
+    } else if (streamId === 2) {
+      secondVideoPlayer.setupInput(channel);
+      console.log(secondVideoPlayer);
+    }
+    console.log("this is chanel");
+    console.log(channel);
+    
+    showStatsMessage(renderstreaming);
+  };
 }
 
-async function onDisconnect(connectionId) {
-  clearStatsMessage();
-  messageDiv.style.display = 'block';
-  messageDiv.innerText = `Disconnect peer on ${connectionId}.`;
 
-  await renderstreaming.stop();
-  renderstreaming = null;
-  videoPlayer.deletePlayer();
-  if (supportsSetCodecPreferences) {
-    codecPreferences.disabled = false;
-  }
-  showPlayButton();
+function createOnDisconnectHandler(streamId, renderstreaming) {
+  return async function(connectionId) {
+    clearStatsMessage();
+    messageDiv.style.display = 'block';
+    messageDiv.innerText = `Disconnect peer on ${connectionId}.`;
+
+    await renderstreaming.stop();
+    renderstreaming = null;
+
+    if (streamId === 1) {
+      firstVideoPlayer.deletePlayer();
+    } else if (streamId === 2) {
+      secondVideoPlayer.deletePlayer();
+    }
+
+    if (supportsSetCodecPreferences) {
+      codecPreferences.disabled = false;
+    }
+    showPlayButton(streamId);
+  };
 }
 
 function setCodecPreferences() {
@@ -155,7 +232,7 @@ let lastStats;
 /** @type {number} */
 let intervalId;
 
-function showStatsMessage() {
+function showStatsMessage(renderstreaming) {
   intervalId = setInterval(async () => {
     if (renderstreaming == null) {
       return;

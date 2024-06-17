@@ -20,7 +20,32 @@ body {
   padding-top: 66%;
 }
 
+#secondPlayer {
+  position: relative;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  align-items: center;
+  justify-content: center;
+  display: flex;
+  background-color: #323232;
+}
+
+#secondPlayer:before {
+  content: "";
+  display: block;
+  padding-top: 66%;
+}
+
+
 #playButton {
+  width: 15%;
+  max-width: 200px;
+  cursor: pointer;
+}
+
+#secondPlayButton {
   width: 15%;
   max-width: 200px;
   cursor: pointer;

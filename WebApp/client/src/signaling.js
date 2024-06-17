@@ -133,20 +133,33 @@ export class Signaling extends EventTarget {
 
 export class WebSocketSignaling extends EventTarget {
 
-  constructor(interval = 1000) {
+  constructor(streamId, interval = 1000) {
     super();
+    this.streamId = streamId;
     this.interval = interval;
     this.sleep = msec => new Promise(resolve => setTimeout(resolve, msec));
 
     let websocketUrl;
+    console.log(location);
+
     if (location.protocol === "https:") {
       websocketUrl = "wss://" + location.host;
     } else {
-      websocketUrl = "ws://" + location.host;
+      if (this.streamId == 1){
+        websocketUrl = "ws://" + location.hostname + ":8081";
+      }
+      else if (this.streamId == 2){
+        websocketUrl = "ws://" + location.hostname + ":8082";
+      }
+      // websocketUrl = "ws://" + location.host;   
     }
+
+    console.log(websocketUrl);
 
     this.websocket = new WebSocket(websocketUrl);
     this.connectionId = null;
+
+    console.log(this.websocket);
 
     this.websocket.onopen = () => {
       this.isWsOpen = true;
@@ -201,27 +214,27 @@ export class WebSocketSignaling extends EventTarget {
 
   createConnection(connectionId) {
     const sendJson = JSON.stringify({ type: "connect", connectionId: connectionId });
-    Logger.log(sendJson);
+    // Logger.log(sendJson);
     this.websocket.send(sendJson);
   }
 
   deleteConnection(connectionId) {
     const sendJson = JSON.stringify({ type: "disconnect", connectionId: connectionId });
-    Logger.log(sendJson);
+    // Logger.log(sendJson);
     this.websocket.send(sendJson);
   }
 
   sendOffer(connectionId, sdp) {
     const data = { 'sdp': sdp, 'connectionId': connectionId };
     const sendJson = JSON.stringify({ type: "offer", from: connectionId, data: data });
-    Logger.log(sendJson);
+    // Logger.log(sendJson);
     this.websocket.send(sendJson);
   }
 
   sendAnswer(connectionId, sdp) {
     const data = { 'sdp': sdp, 'connectionId': connectionId };
     const sendJson = JSON.stringify({ type: "answer", from: connectionId, data: data });
-    Logger.log(sendJson);
+    // Logger.log(sendJson);
     this.websocket.send(sendJson);
   }
 
@@ -233,7 +246,7 @@ export class WebSocketSignaling extends EventTarget {
       'connectionId': connectionId
     };
     const sendJson = JSON.stringify({ type: "candidate", from: connectionId, data: data });
-    Logger.log(sendJson);
+    // Logger.log(sendJson);
     this.websocket.send(sendJson);
   }
 }

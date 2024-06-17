@@ -16,7 +16,8 @@ export class RenderStreaming {
       if (Array.isArray(argv)) {
         program
           .usage('[options] <apps...>')
-          .option('-p, --port <n>', 'Port to start the server on.', process.env.PORT || `80`)
+          .option('-p, --port <n>', 'Port to start the server on.', `8080`)
+          .option('--additional-port <n...>', 'Additional Ports to start websocket servers on.',`8082`)
           .option('-s, --secure', 'Enable HTTPS (you need server.key and server.cert).', process.env.SECURE || false)
           .option('-k, --keyfile <path>', 'https key file.', process.env.KEYFILE || 'server.key')
           .option('-c, --certfile <path>', 'https cert file.', process.env.CERTFILE || 'server.cert')
@@ -33,6 +34,7 @@ export class RenderStreaming {
           type: option.type == undefined ? 'websocket' : option.type,
           mode: option.mode,
           logging: option.logging,
+          additionalPort: option.additionalPort
         };
       }
     };
@@ -77,12 +79,28 @@ export class RenderStreaming {
       console.log(`Changing signaling type to websocket.`);
       this.options.type = 'websocket';
     }
-    if (this.options.type == 'websocket') {
-      console.log(`Use websocket for signaling server ws://${this.getIPAddress()[0]}`);
+    if (this.options.type === 'websocket') {
+      console.log(this.options.additionalPort);
+      this.startWebSocketServer(this.server, this.options.port);
 
-      //Start Websocket Signaling server
-      new WSSignaling(this.server, this.options.mode);
+
+    const wsServer = express();
+    const newserver = express();
+    const wsHttpServer = wsServer.listen(this.options.additionalPort, () => {
+      this.startWebSocketServer(wsHttpServer, this.options.additionalPort);
+    });
+    const newwsHttP = newserver.listen(8081, () => {
+      this.startWebSocketServer(newwsHttP, 8081);
+    });
     }
+
+
+    // if (this.options.type == 'websocket') {
+    //   console.log(`Use websocket for signaling server ws://${this.getIPAddress()[0]}`);
+
+    //   //Start Websocket Signaling server
+    //   new WSSignaling(this.server, this.options.mode);
+    // }
 
     console.log(`start as ${this.options.mode} mode`);
   }
@@ -99,6 +117,11 @@ export class RenderStreaming {
       }
     }
     return addresses;
+  }
+
+  startWebSocketServer(server: Server, port: number) {
+    console.log(`Use websocket for signaling server ws://${this.getIPAddress()[0]}:${port}`);
+    new WSSignaling(server, this.options.mode);
   }
 }
 
