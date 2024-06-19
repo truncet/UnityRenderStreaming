@@ -99,12 +99,20 @@ function onOffer(ws: WebSocket, message: any): void {
   }
 
   connectionPair.set(connectionId, [ws, null]);
+  console.log("This is client and ws");
   clients.forEach((_v, k) => {
-    if (k == ws) {
+    if (k === ws) {
       return;
     }
-    k.send(JSON.stringify({ from: connectionId, to: "", type: "offer", data: newOffer }));
+  
+    const connectionIds = clients.get(k); // Get the set of connection ids
+    console.log(connectionIds);
+    if (connectionIds.size == 0 || connectionIds.has(connectionId) ) { // Check if connectionId is in the set
+      console.log(connectionIds);
+      k.send(JSON.stringify({ from: connectionId, to: "", type: "offer", data: newOffer }));
+    }
   });
+  
 }
 
 function onAnswer(ws: WebSocket, message: any): void {
